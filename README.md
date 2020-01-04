@@ -1,0 +1,2 @@
+# Budgety
+Beginner JS project
