@@ -41,6 +41,20 @@ var UIController = (function() {
             document
                 .querySelector(container)
                 .insertAdjacentHTML("beforeend", newHtml);
+        },
+        clearFields: function() {
+            var fields = document.querySelectorAll(
+                DOMStrings.inputDescription + ", " + DOMStrings.inputValue
+            );
+            // Back then forEach wasn't defined in NodeList.prototype, so we needed to call forEach
+            // from Array.prototype like this:
+            // Array.prototype.slice.call(fields);
+
+            fields.forEach(function(current, index, wholeArray) {
+                current.value = "";
+            });
+
+            fields.item(0).focus(); // Focus on the first element of the NodeList(fields)
         }
     };
 })();
@@ -96,6 +110,7 @@ var controller = (function(budgetCtrl, UICtrl) {
             input.value
         );
         UICtrl.addListItem(newItem);
+        UICtrl.clearFields();
     };
 
     var setupEventListeners = function() {
