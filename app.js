@@ -13,7 +13,20 @@ var UIController = (function() {
         incomeLabel: ".budget__income--value",
         expensesLabel: ".budget__expenses--value",
         percentageLabel: ".budget__expenses--percentage",
-        container: ".container"
+        container: ".container",
+        incPercentages: ".inc__percentage",
+        expPercentages: ".exp__percentage",
+        monthLabel: ".budget__title--month"
+    };
+
+    var formatNumber = function(num, type) {
+        var num = Math.abs(num);
+        num = num.toFixed(2); // Make it 2 decimal places after comma
+        var numSplit = num.split(".");
+        var int = numSplit[0]; // Integer part of the value
+        int = int.replace(/(\d)(?=(\d{3})+$)/g, "$1,");
+        var decimal = numSplit[1];
+        return (type === "inc" ? "+" : "-") + int + "." + decimal;
     };
 
     return {
@@ -35,15 +48,15 @@ var UIController = (function() {
             if (obj.type === "inc") {
                 container = DOMStrings.incomeContainer;
                 html =
-                    '<div class="item clearfix" id="inc-%id%"><div class="item__description">%description%</div><div class="right clearfix"><div class="item__value">+ %value%</div><div class="item__delete"><button class="item__delete--btn"><i class="ion-ios-close-outline"></i></button></div></div></div>';
+                    '<div class="item clearfix" id="inc-%id%"><div class="item__description">%description%</div><div class="right clearfix"><div class="item__value"> %value%</div><div class="inc__percentage">21%</div><div class="item__delete"><button class="item__delete--btn"><i class="ion-ios-close-outline"></i></button></div></div></div>';
             } else if (obj.type === "exp") {
                 container = DOMStrings.expensesContainer;
                 html =
-                    '<div class="item clearfix" id="exp-%id%"><div class="item__description">%description%</div><div class="right clearfix"><div class="item__value">- %value%</div><div class="item__percentage">21%</div><div class="item__delete"><button class="item__delete--btn"><i class="ion-ios-close-outline"></i></button></div></div></div>';
+                    '<div class="item clearfix" id="exp-%id%"><div class="item__description">%description%</div><div class="right clearfix"><div class="item__value"> %value%</div><div class="exp__percentage">21%</div><div class="item__delete"><button class="item__delete--btn"><i class="ion-ios-close-outline"></i></button></div></div></div>';
             }
             var newHtml = html.replace("%id%", obj.id);
             newHtml = newHtml.replace("%description%", obj.description);
-            newHtml = newHtml.replace("%value%", obj.value);
+            newHtml = newHtml.replace("%value%", formatNumber(obj.value));
 
             document
                 .querySelector(container)
@@ -70,12 +83,16 @@ var UIController = (function() {
             fields.item(0).focus(); // Focus on the first element of the NodeList(fields)
         },
         displayBudget: function(budgetObj) {
-            document.querySelector(DOMStrings.budgetLabel).textContent =
-                budgetObj.budget;
-            document.querySelector(DOMStrings.incomeLabel).textContent =
-                budgetObj.totalInc;
-            document.querySelector(DOMStrings.expensesLabel).textContent =
-                budgetObj.totalExp;
+            var type = budgetObj.budget > 0 ? "inc" : "exp";
+            document.querySelector(
+                DOMStrings.budgetLabel
+            ).textContent = formatNumber(budgetObj.budget, type);
+            document.querySelector(
+                DOMStrings.incomeLabel
+            ).textContent = formatNumber(budgetObj.totalInc, "inc");
+            document.querySelector(
+                DOMStrings.expensesLabel
+            ).textContent = formatNumber(budgetObj.totalExp, "exp");
 
             if (budgetObj.percentage > 0) {
                 document.querySelector(DOMStrings.percentageLabel).textContent =
@@ -84,6 +101,40 @@ var UIController = (function() {
                 document.querySelector(DOMStrings.percentageLabel).textContent =
                     "---";
             }
+        },
+        displayPercentages: function(type, percentages) {
+            var fields = document.querySelectorAll(
+                DOMStrings[type + "Percentages"]
+            );
+            fields.forEach(function(curr, index) {
+                if (percentages[index] > 0) {
+                    curr.textContent = percentages[index] + "%";
+                } else {
+                    curr.textContent = "---";
+                }
+            });
+        },
+        displayMonth: function() {
+            var now = new Date();
+            var month = now.getMonth(); // month in number, beginning from 0
+            var year = now.getFullYear();
+            var months = [
+                "January",
+                "February",
+                "March",
+                "April",
+                "May",
+                "June",
+                "July",
+                "August",
+                "September",
+                "October",
+                "November",
+                "December"
+            ];
+            var monthText = months[month];
+            document.querySelector(DOMStrings.monthLabel).textContent =
+                monthText + " " + year;
         }
     };
 })();
@@ -96,6 +147,20 @@ var BudgetController = (function() {
         this.id = id;
         this.description = description;
         this.value = value;
+        this.percentage = -1;
+    };
+
+    Transition.prototype.calculatePercentage = function() {
+        var totalIncome = data.totals.inc;
+        if (totalIncome > 0) {
+            this.percentage = Math.round((this.value / totalIncome) * 100);
+        } else {
+            this.percentage = -1;
+        }
+    };
+
+    Transition.prototype.getPercentage = function() {
+        return this.percentage;
     };
 
     var calculateTotal = function(type) {
@@ -148,6 +213,14 @@ var BudgetController = (function() {
                 data.percentage = -1;
             }
         },
+        calculatePercentages: function() {
+            data.allItems.exp.forEach(function(curr) {
+                curr.calculatePercentage();
+            });
+            data.allItems.inc.forEach(function(curr) {
+                curr.calculatePercentage();
+            });
+        },
         getBudget: function() {
             return {
                 budget: data.budget,
@@ -155,6 +228,18 @@ var BudgetController = (function() {
                 totalExp: data.totals.exp,
                 percentage: data.percentage
             };
+        },
+        getIncPercentages: function() {
+            var incomePercentages = data.allItems.inc.map(function(curr) {
+                return curr.getPercentage();
+            });
+            return incomePercentages;
+        },
+        getExpPercentages: function() {
+            var expPercentages = data.allItems.exp.map(function(curr) {
+                return curr.getPercentage();
+            });
+            return expPercentages;
         },
         deleteItem: function(type, id) {
             var ids = data.allItems[type].map(function(current) {
@@ -177,7 +262,15 @@ var controller = (function(budgetCtrl, UICtrl) {
         var budget = budgetCtrl.getBudget();
         UICtrl.displayBudget(budget);
     };
-    var updatePercentages = function() {};
+    var updatePercentages = function() {
+        budgetCtrl.calculatePercentages();
+
+        var incomePercentages = budgetCtrl.getIncPercentages();
+        var expensesPercentages = budgetCtrl.getExpPercentages();
+
+        UICtrl.displayPercentages("inc", incomePercentages);
+        UICtrl.displayPercentages("exp", expensesPercentages);
+    };
     var ctrlAddItem = function() {
         var input = UICtrl.getInput();
         // Check user inputs
@@ -245,6 +338,7 @@ var controller = (function(budgetCtrl, UICtrl) {
                 totalExp: 0,
                 percentage: -1
             });
+            UICtrl.displayMonth();
         }
     };
 })(BudgetController, UIController);
