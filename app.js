@@ -135,6 +135,23 @@ var UIController = (function() {
             var monthText = months[month];
             document.querySelector(DOMStrings.monthLabel).textContent =
                 monthText + " " + year;
+        },
+        changeType: function() {
+            var focusedFields = document.querySelectorAll(
+                DOMStrings.inputType +
+                    "," +
+                    DOMStrings.inputDescription +
+                    "," +
+                    DOMStrings.inputValue
+            );
+
+            focusedFields.forEach(function(curr) {
+                curr.classList.toggle("red-focus");
+            });
+
+            document
+                .querySelector(DOMStrings.addButton)
+                .classList.toggle("red");
         }
     };
 })();
@@ -328,6 +345,10 @@ var controller = (function(budgetCtrl, UICtrl) {
         document
             .querySelector(DOM.container)
             .addEventListener("click", ctrlDeleteItem);
+
+        document
+            .querySelector(DOM.inputType)
+            .addEventListener("change", UICtrl.changeType);
     };
     return {
         init: function() {
